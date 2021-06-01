@@ -94,7 +94,11 @@ class Completer:
                 return ''
             toks = list()
             for species in species_list:
-                toks.append('{}^{:g}'.format(species.get_name().text, species.get_stoich()))
+                tok = species.get_name().text
+                if species.get_stoich() != 1:
+                    # add exponent
+                    tok += '^{:g}'.format(species.get_stoich())
+                toks.append(tok)
             return ' * ' + ' * '.join(toks)
 
         # snippet is of the format '${1:placeholder} ... ${2:placeholder} ...'. We want to use

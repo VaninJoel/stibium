@@ -39,24 +39,24 @@ i122 identity "http://identifiers.org/chebi/CHEBI:17234"
 @pytest.mark.parametrize('code,pos,text_comps,snippet_comps', [
     ('2A -> B;  ', SrcPosition(1, 9), [], ['${1:k_f_J0} * A^2']),
     # space after
-    (' A -> B;  ', SrcPosition(1, 10), [], ['${1:k_f_J0} * A^1']),
+    (' A -> B;  ', SrcPosition(1, 10), [], ['${1:k_f_J0} * A']),
     # garbage tokens afterwards
-    ('A -> B;      *&&^(', SrcPosition(1, 9), [], ['${1:k_f_J0} * A^1']),
+    ('A -> B;      *&&^(', SrcPosition(1, 9), [], ['${1:k_f_J0} * A']),
     # statement afterwards
-    ('A -> B;      ; k = 10.5', SrcPosition(1, 9), ['k'], ['${1:k_f_J0} * A^1']),
+    ('A -> B;      ; k = 10.5', SrcPosition(1, 9), ['k'], ['${1:k_f_J0} * A']),
     # reaction name and two reactants
     ('J12: 2A +   3B -> B;  ', SrcPosition(1, 21), [], ['${1:k_f_J12} * A^2 * B^3']),
     # reversible
     ('J3: 2A +   3 B => B + 4.5C;             ', SrcPosition(1, 30), [],
-       ['${1:k_f_J3} * A^2 * B^3 - ${2:k_b_J3} * B^1 * C^4.5']),
+       ['${1:k_f_J3} * A^2 * B^3 - ${2:k_b_J3} * B * C^4.5']),
     # generate unique name
-    ('J0: 1A -> B;1\nA->B;     \nJ1: C->D;1', SrcPosition(2, 7), ['A', 'B', 'C', 'D', 'J0', 'J1'], ['${1:k_f_J2} * A^1']),
+    ('J0: 1A -> B;1\nA->B;     \nJ1: C->D;1', SrcPosition(2, 7), ['A', 'B', 'C', 'D', 'J0', 'J1'], ['${1:k_f_J2} * A']),
     # no reactants
     ('J3:          -> B + 4.5C;             ', SrcPosition(1, 30), [], ['${1:k_f_J3}']),
     # no reactants (reversible)
-    ('J3:          => B;           ', SrcPosition(1, 30), [], ['${1:k_f_J3} - ${2:k_b_J3} * B^1']),
+    ('J3:          => B;           ', SrcPosition(1, 30), [], ['${1:k_f_J3} - ${2:k_b_J3} * B']),
     # no products (no completions for that for now)
-    ('J3:       A   =>         ;             ', SrcPosition(1, 30), [], ['${1:k_f_J3} * A^1 - ${2:k_b_J3}']),
+    ('J3:       A   =>         ;             ', SrcPosition(1, 30), [], ['${1:k_f_J3} * A - ${2:k_b_J3}']),
     # wrong place (name)
     ('J3:    A    =>    B    ;             ', SrcPosition(1, 2), [], []),
     # wrong place (reactants)
