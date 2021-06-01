@@ -4,7 +4,7 @@
 
 py36
 py37
-__pycache__
+#__pycache__
 pythonFiles/lib/python/**
 
 temp
