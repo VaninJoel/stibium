@@ -2,7 +2,7 @@
 from stibium.ant_types import FileNode
 from stibium.tree_builder import set_leaf_pointers, set_parents, transform_tree
 from stibium.types import ASTNode, AntimonySyntaxError, SrcLocation, SrcPosition
-from stibium.utils import get_token_range
+from stibium.utils import get_abs_path, get_token_range
 from .lark_patch import get_puppet
 
 import os
@@ -47,12 +47,13 @@ class AntimonyParser:
     '''Frontend of a parser for Antimony, basically wrapping a Lark parser with error recovery.'''
     def __init__(self):
         grammar_str = get_grammar_str()
+        cache_file = get_abs_path('.lark-cache')
         self.parser = Lark(grammar_str, start='root', parser='lalr',
                                 propagate_positions=True,
                                 keep_all_tokens=True,
                                 maybe_placeholders=True,
                                 lexer='contextual',
-                                cache=True)
+                                cache=cache_file)
 
     def parse(self, text: str, recoverable=False) -> FileNode:
         '''Parse the tree, automatically appending a newline character to the end of the given text.

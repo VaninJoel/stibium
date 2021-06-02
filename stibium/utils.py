@@ -1,4 +1,5 @@
 
+import os
 from typing import Optional
 
 from lark.tree import Tree
@@ -8,6 +9,10 @@ from .types import ASTNode, SrcPosition, SrcRange
 from lark.lexer import Token
 
 import pathlib
+
+
+def get_abs_path(filename: str):
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), filename)
 
 
 def get_token_range(token: Token):
