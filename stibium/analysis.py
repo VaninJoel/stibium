@@ -2,10 +2,9 @@
 from stibium.ant_types import Annotation, ArithmeticExpr, Assignment, Declaration, ErrorNode, ErrorToken, FileNode, Function, InComp, LeafNode, Model, Name, Reaction, SimpleStmt, TreeNode, TrunkNode
 from .types import ASTNode, Issue, SymbolType, SyntaxErrorIssue, UnexpectedEOFIssue, UnexpectedNewlineIssue, UnexpectedTokenIssue, Variability, SrcPosition
 from .symbols import AbstractScope, BaseScope, FunctionScope, ModelScope, QName, SymbolTable
-from .utils import get_range
 
 from dataclasses import dataclass
-from typing import Any, List, Optional, Set
+from typing import Any, List, Optional, Set, cast
 from itertools import chain
 from lark.lexer import Token
 from lark.tree import Tree
@@ -79,18 +78,29 @@ class AntTreeAnalyzer:
         self._record_syntax_issues()
 
     def _record_syntax_issues(self):
-        for node in self.root.descendants():
-            if isinstance(node, ErrorToken):
+        lines = set()
+        for node in self.root.children:
+            if node is None:
+                continue
+            issue = None
+            # isinstance() is too slow here
+            if type(node) == ErrorToken:
+                node = cast(ErrorToken, node)
                 if node.text.strip() == '':
                     # this must be an unexpected newline
-                    self.syntax_issues.append(UnexpectedNewlineIssue(node.range.start))
+                    issue = UnexpectedNewlineIssue(node.range.start)
                 else:
-                    self.syntax_issues.append(UnexpectedTokenIssue(node.range, node.text))
-            elif isinstance(node, ErrorNode):
+                    issue = UnexpectedTokenIssue(node.range, node.text)
+            elif type(node) == ErrorNode:
+                node = cast(ErrorNode, node)
                 last_leaf = node.last_leaf()
                 if last_leaf and last_leaf.next is None:
-                    self.syntax_issues.append(UnexpectedEOFIssue(last_leaf.range))
+                    issue = UnexpectedEOFIssue(last_leaf.range)
 
+            # only one issue per line
+            if issue and issue.range.start.line not in lines:
+                self.syntax_issues.append(issue)
+                lines.add(issue.range.start.line)
 
     def resolve_qname(self, qname: QName):
         return self.table.get(qname)
@@ -109,14 +119,23 @@ class AntTreeAnalyzer:
     def handle_child_incomp(self, scope: AbstractScope, node: TrunkNode):
         '''Find all `incomp` nodes among the descendants of node and record the compartment names.'''
         for child in node.descendants():
-            if child and isinstance(child, InComp):
+            # isinstance() is too slow here
+            if child and type(child) == InComp:
+                child = cast(InComp, child)
                 self.table.insert(QName(scope, child.get_comp().get_name()), SymbolType.Compartment)
 
     def handle_arith_expr(self, scope: AbstractScope, expr: TreeNode):
         # TODO handle dummy tokens
-        for leaf in expr.scan_leaves():
-            if isinstance(leaf, Name):
+        if not hasattr(expr, 'children'):
+            if type(expr) == Name:
+                leaf = cast(Name, expr)
                 self.table.insert(QName(scope, leaf), SymbolType.Parameter)
+        else:
+            expr = cast(TrunkNode, expr)
+            for leaf in expr.scan_leaves():
+                if type(leaf) == Name:
+                    leaf = cast(Name, leaf)
+                    self.table.insert(QName(scope, leaf), SymbolType.Parameter)
 
     def handle_reaction(self, scope: AbstractScope, reaction: Reaction):
         name = reaction.get_name()
@@ -124,7 +143,7 @@ class AntTreeAnalyzer:
             self.table.insert(QName(scope, name), SymbolType.Reaction, reaction)
         # else:
         #     reaction_name = self.table.get_unique_name('_J', scope)
-        #     reaction_range = get_range(tree)
+        #     reaction_range = get_tree_range(tree)
         #     reaction_token = tree.children[3]
 
         for species in chain(reaction.get_reactants(), reaction.get_products()):

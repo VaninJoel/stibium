@@ -2,7 +2,7 @@
 from stibium.ant_types import FileNode
 from stibium.tree_builder import set_leaf_pointers, set_parents, transform_tree
 from stibium.types import ASTNode, AntimonySyntaxError, SrcLocation, SrcPosition
-from stibium.utils import get_range
+from stibium.utils import get_token_range
 from .lark_patch import get_puppet
 
 import os
@@ -51,7 +51,8 @@ class AntimonyParser:
                                 propagate_positions=True,
                                 keep_all_tokens=True,
                                 maybe_placeholders=True,
-                                lexer='contextual')
+                                lexer='contextual',
+                                cache=True)
 
     def parse(self, text: str, recoverable=False) -> FileNode:
         '''Parse the tree, automatically appending a newline character to the end of the given text.
@@ -61,6 +62,14 @@ class AntimonyParser:
         tree: Tree
         root_puppet = get_puppet(self.parser, 'root', text)
         tree = self._parse_with_puppet(root_puppet, recoverable, text)
+
+        # If text is empty, this tree would not have line or columns
+        if len(tree.children) == 0:
+            tree.meta.line = 1
+            tree.meta.end_line = 1
+            tree.meta.column = 1
+            tree.meta.end_column = 1
+            tree.meta.empty = False
 
         root = transform_tree(tree)
         assert root is not None and isinstance(root, FileNode)
@@ -128,7 +137,7 @@ class AntimonyParser:
                     self._recover_from_error(puppet, token_callback, token)
                 else:
                     # re-throw error using our class
-                    range_ = get_range(token)
+                    range_ = get_token_range(token)
                     raise AntimonySyntaxError(token.value, range_.start, range_.end)
 
     def _recover_from_error(self, err_puppet, token_callback, token=None):
@@ -267,7 +276,7 @@ class AntimonyParser:
             '''
             if token.type == '$END':
                 raise PositionReached
-            token_range = get_range(token)
+            token_range = get_token_range(token)
             # token_range.end is exclusive, i.e. token at position 1 with length 1 would have end 2.
             if stop_pos < token_range.end:
                 raise PositionReached

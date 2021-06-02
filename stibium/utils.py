@@ -1,5 +1,7 @@
 
 from typing import Optional
+
+from lark.tree import Tree
 from stibium.ant_types import Atom, ErrorToken, LeafNode, Name, Newline, Number, Operator, SimpleStmt, StringLiteral, TreeNode, TrunkNode
 from .types import ASTNode, SrcPosition, SrcRange
 
@@ -8,16 +10,13 @@ from lark.lexer import Token
 import pathlib
 
 
-def get_range(node: ASTNode):
-    if isinstance(node, Token):
-        return SrcRange(SrcPosition(node.line, node.column),
-                        SrcPosition(node.end_line, node.end_column))
-    else:
-        if len(node.children) == 0:
-            return SrcRange(SrcPosition(1, 1), SrcPosition(1, 1))
+def get_token_range(token: Token):
+    return SrcRange(SrcPosition(token.line, token.column),
+                    SrcPosition(token.end_line, token.end_column))
 
-        return SrcRange(SrcPosition(node.meta.line, node.meta.column),
-                        SrcPosition(node.meta.end_line, node.meta.end_column))
+def get_tree_range(tree: Tree):
+    return SrcRange(SrcPosition(tree.meta.line, tree.meta.column),
+                    SrcPosition(tree.meta.end_line, tree.meta.end_column))
 
 
 def formatted_code(node: Optional[TreeNode]):

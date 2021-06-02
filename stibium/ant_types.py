@@ -43,15 +43,17 @@ class TrunkNode(TreeNode):
 
     def descendants(self):
         '''Iterate over all descendants, including self and the None nodes.'''
+        yield self
         for child in self.children:
             if child is not None:
-                if isinstance(child, LeafNode):
+                # if isinstance(child, LeafNode):
+                # faster than isinstance
+                if not hasattr(child, 'children'):
                     yield child
                 else:
                     child = cast(TrunkNode, child)
                     for desc in child.descendants():
                         yield desc
-        yield self
 
     def last_leaf(self):
         for child in reversed(self.children):
@@ -77,16 +79,20 @@ class LeafNode(TreeNode):
 
 
 def _scan_leaves(node: TreeNode):
-    if isinstance(node, TrunkNode):
+    # using this instead of isinstance() for performance
+    if hasattr(node, 'children'):
+        node = cast(TrunkNode, node)
         for child in node.children:
             if child is not None:
                 for leaf in _scan_leaves(child):
                     yield leaf
     else:
-        assert isinstance(node, LeafNode)
+        # assert isinstance(node, LeafNode)
         yield node
 
 
+# NOTE don't subclass this because we are using type(...) == ErrorNode instead of isinstance() for
+# performance reasons
 @dataclass
 class ErrorNode(TrunkNode):
     '''ErrorNode is a tree of tokens that appear before an unexpected token (ErrorToken).
@@ -103,6 +109,8 @@ class ErrorNode(TrunkNode):
     pass
 
 
+# NOTE don't subclass this because we are using type(...) == ErrorToken instead of isinstance() for
+# performance reasons
 @dataclass
 class ErrorToken(LeafNode):
     pass
@@ -145,6 +153,8 @@ class Atom(TrunkNode, ArithmeticExpr):
     # rule called Factor that handles that?
 
 
+# NOTE don't subclass this because we are using type(...) == Name instead of isinstance() for
+# performance reasons
 class Name(LeafNode):
     def check_rep(self):
         assert bool(self.text)
@@ -194,6 +204,8 @@ class VarName(TrunkNode):
         return self.children[1].text
 
 
+# NOTE don't subclass this because we are using type(...) == InComp instead of isinstance() for
+# performance reasons
 @dataclass
 class InComp(TrunkNode):
     children: Tuple[Keyword, VarName] = field(repr=False)

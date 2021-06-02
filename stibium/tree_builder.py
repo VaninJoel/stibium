@@ -2,7 +2,7 @@
 
 # Helper classes to hold name structures
 
-from typing import Callable, Dict, Optional, Type, TypeVar, Union
+from typing import Callable, Dict, Optional, Type, TypeVar, Union, cast
 
 from lark.lexer import Token
 from lark.tree import Tree
@@ -18,7 +18,7 @@ from stibium.ant_types import (Annotation, ArithmeticExpr, Assignment, Atom, Dec
                                VarName)
 from stibium.symbols import AbstractScope, BaseScope
 from stibium.types import ASTNode, SrcRange, SymbolType, Variability
-from stibium.utils import get_range
+from stibium.utils import get_tree_range, get_token_range
 
 # Use None to indicate that this node should have exactly one child and should be skilled
 TREE_MAP: Dict[str, Type[TreeNode]] = {
@@ -60,25 +60,27 @@ OPERATORS = {'EQUAL', 'COLON', 'ARROW', 'SEMICOLON', 'LPAR', 'RPAR', 'STAR', 'PL
              'DOLLAR', 'CIRCUMFLEX', 'COMMA', 'SLASH'}
 KEYWORDS = {'ANNOT_KEYWORD', 'IN'}
 
+for name in OPERATORS:
+    TREE_MAP[name] = Operator
+
+for name in KEYWORDS:
+    TREE_MAP[name] = Keyword
+
 
 def transform_tree(tree: Optional[Union[Tree, str]]):
     if tree is None:
         return None
 
     if isinstance(tree, str):
-        assert isinstance(tree, Token)
-        if tree.type in OPERATORS:
-            cls = Operator
-        elif tree.type in KEYWORDS:
-            cls = Keyword
-        else:
-            cls = TREE_MAP[tree.type]
+        # assert isinstance(tree, Token)
+        tree = cast(Token, tree)
+        cls = TREE_MAP[tree.type]
 
-        assert issubclass(cls, LeafNode)
-        return cls(get_range(tree), tree.value)
+        # assert issubclass(cls, LeafNode)
+        return cls(get_token_range(tree), tree.value)  # type: ignore
     else:
         cls = TREE_MAP[tree.data]
-        assert issubclass(cls, TrunkNode)
+        # assert issubclass(cls, TrunkNode)
 
         children = tuple(transform_tree(child) for child in tree.children)
 
@@ -91,11 +93,12 @@ def transform_tree(tree: Optional[Union[Tree, str]]):
                 if isinstance(child, VarModifier):
                     var_mod = child
                 else:
-                    assert isinstance(child, TypeModifier)
+                    # assert isinstance(child, TypeModifier)
+                    child = cast(TypeModifier, child)
                     type_mod = child
             children = (var_mod, type_mod)
 
-        return cls(get_range(tree), children)
+        return cls(get_tree_range(tree), children)  # type: ignore
 
 
 def set_parents(root: TreeNode):

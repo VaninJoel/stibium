@@ -6,14 +6,26 @@ from lark.lexer import Token
 from lark.tree import Tree
 
 
-@dataclass(eq=True)
 class SrcPosition:
     '''A position in text; uses 1-based index.'''
     line: int
     column: int
+    __slots__ = ['line', 'column']
+
+    def __init__(self, line: int, column: int):
+        self.line = line
+        self.column = column
 
     def __repr__(self):
         return '{}:{}'.format(self.line, self.column)
+
+    def __str__(self):
+        return 'SrcPosition({}, {})'.format(self.line, self.column)
+
+    def __eq__(self, other):
+        if not isinstance(other, SrcPosition):
+            return NotImplemented
+        return self.line == other.line and self.column == other.column
 
     def __ge__(self, other):
         if self.line > other.line:
@@ -44,7 +56,6 @@ class SrcPosition:
         return False
         
 
-@dataclass
 class SrcRange:
     '''A range in text; uses 1-based index.
     
@@ -55,6 +66,19 @@ class SrcRange:
     '''
     start: SrcPosition
     end: SrcPosition
+    __slots__ = ['start', 'end']
+
+    def __init__(self, start: SrcPosition, end: SrcPosition):
+        self.start = start
+        self.end = end
+
+    def __eq__(self, other):
+        if not isinstance(other, SrcRange):
+            return NotImplemented
+        return self.start == other.start and self.end == other.end
+
+    def __str__(self):
+        return 'SrcRange({}, {})'.format(self.start, self.end)
 
     def __repr__(self):
         return '{} - {}'.format(self.start, self.end)
