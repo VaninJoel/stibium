@@ -203,21 +203,23 @@ class SymbolTable:
                 self._issues.append(IncompatibleType(old_type, old_range, typ, new_range))
                 return
 
-        # TODO improve decl_name/decl_node behavior, or delete decl_name entirely.
+        # TODO improve decl_name/decl_node behavior
         # Overriding declaration should generally be
         # fine, unless the previous type was erased. But type errors are already accounted for.
         # So, the only case where maybe a warning could be raised, is declarations with no additional
         # information, e.g. var species a; species a; But that shouldn't be high priority.
+        # Also of course, we don't want to overwrite the previous decl_node entirely as we're doing
+        # right now. Consider "const a; species a"
         # Override the declaration
-        # if decl_node is not None:
-        #     decl_name = qname.name
-        #     if sym.decl_name is not None:
-        #         old_range = sym.decl_name.range
-        #         new_range = decl_name.range
-        #         # Overriding previous declaration
-        #         issues.append(ObscuredDeclaration(old_range, new_range, decl_name.text))
-        #     sym.decl_node = decl_node
-        #     sym.decl_name = decl_name
+        if decl_node is not None:
+            decl_name = qname.name
+            if sym.decl_name is not None:
+                old_range = sym.decl_name.range
+                new_range = decl_name.range
+                # Overriding previous declaration
+                # issues.append(ObscuredDeclaration(old_range, new_range, decl_name.text))
+            sym.decl_node = decl_node
+            sym.decl_name = decl_name
 
         if value_node is not None:
             value_name = qname.name
