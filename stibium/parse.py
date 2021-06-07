@@ -1,4 +1,5 @@
 
+from typing import Union
 from stibium.ant_types import FileNode
 from stibium.tree_builder import set_leaf_pointers, set_parents, transform_tree
 from stibium.types import ASTNode, AntimonySyntaxError, SrcLocation, SrcPosition
@@ -39,8 +40,8 @@ def dummy_newline() -> Token:
     return Token('NEWLINE', DUMMY_VALUE, 0, 1, 1, 1, 1, 0)  # type: ignore
 
 
-def is_dummy(token: Token):
-    return token.value == DUMMY_VALUE
+def is_dummy(node: Union[Token, Tree]):
+    return isinstance(node, Token) and node.value == DUMMY_VALUE
 
 
 def get_parser(grammar_str: str, cache_file: str):
@@ -50,7 +51,6 @@ def get_parser(grammar_str: str, cache_file: str):
                             maybe_placeholders=True,
                             lexer='contextual',
                             cache=cache_file)
-
 
 
 class AntimonyParser:
@@ -184,7 +184,7 @@ class AntimonyParser:
             if all_nodes:
                 # if we added a dummy NEWLINE token previously (see 'HACK' below), then don't add
                 # the token as an error node
-                if not (len(all_nodes) == 1 and is_dummy(all_nodes[0])):
+                if not (len(all_nodes) == 1 and all_nodes[0] and is_dummy(all_nodes[0])):
                     # propgate positions
                     meta = Meta()
                     meta.line = all_nodes[0].line

@@ -180,7 +180,9 @@ class Keyword(LeafNode):
 
 @dataclass
 class StringLiteral(LeafNode):
-    pass
+    def get_str(self):
+        '''Get the string within the quotes.'''
+        return self.text[1:-1]
 
 
 # NOTE for now, the EOF is constructed as a Newline with text being an empty string. In the future,
@@ -453,7 +455,7 @@ class Annotation(TrunkNode):
         return self.children[1].text
 
     def get_uri(self):
-        return self.children[2].text
+        return self.children[2].get_str()
 
 
 @dataclass

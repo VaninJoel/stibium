@@ -1,8 +1,8 @@
 # Stibium - Language Support Library for Antimony
-This is a language support library for (Antimony)[https://tellurium.readthedocs.io/en/latest/antimony.html]
+This is a language support library for [Antimony](https://tellurium.readthedocs.io/en/latest/antimony.html)
 that supports parsing, static analysis, completion, and more.
 Stibium provides an simple Python API for performing the above tasks and handling the parse tree.
-(Lark)[https://github.com/lark-parser/lark] is used as the parser backend.
+[Lark](https://github.com/lark-parser/lark) is used as the parser backend.
 
 Stibium requires Python 3.6+.
 

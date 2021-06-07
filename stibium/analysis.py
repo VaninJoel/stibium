@@ -194,7 +194,9 @@ class AntTreeAnalyzer:
         name = annotation.get_var_name().get_name()
         # TODO(Gary) maybe we can have a narrower type here, since annotation is restricted only to
         # species or compartments? I'm not sure. If that's the case though, we'll need union types.
-        self.table.insert(QName(scope, name), SymbolType.Parameter)
+        qname = QName(scope, name)
+        self.table.insert(qname, SymbolType.Parameter)
+        self.table.insert_annotation(qname, annotation)
 
 
 # def get_ancestors(node: ASTNode):

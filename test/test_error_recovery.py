@@ -48,6 +48,46 @@ def test_almost_full_stmt():
     assert len(tree.children[0].children) == 5
 
 
+def test_garble():
+    '''Apparently, when parsing the following code, is_dummy() will at one time be passed an
+    argument of type Tree, rather than Token'''
+    code = """
+async function createAnnotationDialog(context, args: any[]) {
+	// Wait till client is ready, or the Python server might not have started yet.
+	// NOTE this is necessary for any command that might use the Python language server.
+	await client.onReady();
+
+	const selection = window.activeTextEditor.selection
+	const selectedText = window.activeTextEditor.document.getText(selection);
+	const initialEntity = selectedText || 'entityName';
+
+	let initialQuery;
+	if (args.length == 2) {
+		initialQuery = args[1];
+	} else {
+		initialQuery = selectedText;
+	}
+
+	const selectedItem = await multiStepInput(context, initialQuery);
+
+	await insertAnnotation(selectedItem, initialEntity);
+}
+
+async function insertAnnotation(selectedItem, entityName) {
+	const entity = selectedItem.entity;
+	const id = entity['id'];
+	const prefix = entity['prefix'];
+	const snippetText = `\n${1:${entityName}} identity "http://identifiers.org/${prefix}/${id}"\n`;
+	const snippetStr = new SnippetString(snippetText);
+
+	const doc = window.activeTextEditor.document;
+	const pos = doc.lineAt(doc.lineCount - 1).range.end;
+	window.activeTextEditor.insertSnippet(snippetStr, pos);
+}
+"""
+    parser.parse(code, recoverable=True)
+
+
 def test_full_stmt():
     '''Here there should not be an error node, since the statement was terminated.'''
     tree = parser.parse('a = 5*3;?', recoverable=True)

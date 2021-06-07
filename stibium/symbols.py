@@ -1,12 +1,12 @@
 '''Classes for working with and storing symbols.
 '''
-from stibium.ant_types import Name, TreeNode
+from stibium.ant_types import Annotation, Name, TreeNode
 from .types import ObscuredDeclaration, ObscuredValue, SrcRange, SymbolType, IncompatibleType
 
 import abc
 from collections import defaultdict, namedtuple
 from dataclasses import dataclass
-from typing import DefaultDict, Dict, List, Optional, Tuple, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 from lark.lexer import Token
 
 from lark.tree import Tree
@@ -87,6 +87,7 @@ class Symbol:
     decl_name: Optional[Name]
     decl_node: Optional[TreeNode]
     value_node: Optional[TreeNode]
+    annotations: List[Annotation]
 
     def __init__(self, name: str, typ: SymbolType, type_name: Name,
             decl_name: Name = None,
@@ -98,6 +99,7 @@ class Symbol:
         self.decl_name = decl_name
         self.decl_node = decl_node
         self.value_node = value_node
+        self.annotations = list()
 
     def def_name(self):
         '''Return the Name that should be considered as the definition'''
@@ -106,7 +108,11 @@ class Symbol:
     def help_str(self):
         # TODO this is very basic right now. Need to create new Symbol classes for specific types
         # and get better data displayed here.
-        return '({}) {}'.format(self.type, self.name)
+        ret = '```\n({}) {}\n```'.format(self.type, self.name)
+        if self.annotations:
+            # add the first annotation
+            ret += '\n\n***\n\n{}'.format(self.annotations[0].get_uri())
+        return ret
 
 
 class VarSymbol(Symbol):
@@ -114,18 +120,19 @@ class VarSymbol(Symbol):
     
     TODO account for variability
     '''
-    pass
 
 
 # TODO allow the same scope and name to map to multiple symbols, since antimony allows
 # models and variables to have the same name
 class SymbolTable:
     # In the future, maybe use a tree-like data structure? Probably not necessary though - Gary.
-    table: DefaultDict[AbstractScope, Dict[str, Symbol]]
+    _table: DefaultDict[AbstractScope, Dict[str, Symbol]]
+    _qnames: List[QName]
 
     def __init__(self):
         self._table = defaultdict(dict)
         self._issues = list()
+        self._qnames = list()
 
     def _leaf_table(self, scope: AbstractScope):
         return self._table[scope]
@@ -140,6 +147,10 @@ class SymbolTable:
         for leaf_table in self._table.values():
             names |= leaf_table.keys()
         return names
+
+    def get_all_qnames(self):
+        '''Get all the unique names in the table as a set (outside of scope) '''
+        return self._qnames
 
     def get_unique_name(self, prefix: str, scope: AbstractScope = None) -> str:
         '''Obtain a unique name under the scope by trying successively larger number suffixes.
@@ -180,6 +191,8 @@ class SymbolTable:
         # Have an inner method that returns (added, [errors]). Update the value, etc. only if
         # successfully added.
         assert qname.name is not None
+        self._qnames.append(qname)
+
         leaf_table = self._leaf_table(qname.scope)
         name = qname.name.text
         if name not in leaf_table:
@@ -229,3 +242,13 @@ class SymbolTable:
                 # Overriding previous declaration
                 self._issues.append(ObscuredValue(old_range, new_range, value_name.text))
             sym.value_node = value_node
+
+    def insert_annotation(self, qname: QName, node: Annotation):
+        leaf_table = self._leaf_table(qname.scope)
+        name = qname.name.text
+        if name not in leaf_table:
+            sym = VarSymbol(name, SymbolType.Unknown, qname.name)
+            leaf_table[name] = sym
+        else:
+            sym = leaf_table[name]
+        sym.annotations.append(node)

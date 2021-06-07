@@ -7,6 +7,7 @@ from lark.tree import Tree
 from stibium.ant_types import NameMaybeIn, Number, Reaction, ReactionName, SpeciesList
 from stibium.analysis import AntTreeAnalyzer, get_qname_at_position
 from stibium.parse import AntimonyParser
+from stibium.symbols import QName
 from stibium.tree_builder import Species, transform_tree
 from stibium.types import Issue, SrcLocation, SrcPosition
 from stibium.utils import to_uri
@@ -175,3 +176,7 @@ class AntFile:
     def completions(self, position: SrcPosition):
         completer = Completer(self.analyzer, self.parser, self.text, position)
         return completer.completions()
+
+    def get_annotations(self, qname: QName):
+        # TODO HACK this isn't very elegant -- no encapsulation
+        return self.analyzer.table.get(qname)[0].annotations
