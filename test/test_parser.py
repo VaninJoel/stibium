@@ -129,11 +129,11 @@ def test_reaction(code: str, expected_args: Tuple[str, str, Optional[str]]):
 
 
 def test_reaction_reversibility():
-    tree = parser.parse('A -> B; 1')
+    tree = parser.parse('A => B; 1')
     reaction = tree.children[0].children[0]
     assert isinstance(reaction, Reaction) and not reaction.is_reversible()
 
-    tree = parser.parse('A => B; 1')
+    tree = parser.parse('A -> B; 1')
     reaction = tree.children[0].children[0]
     assert isinstance(reaction, Reaction) and reaction.is_reversible()
 
@@ -306,11 +306,11 @@ def test_numbers(code: str, expected: float):
 
 @pytest.mark.parametrize('code,name,keyword,uri', [
     ('i122 identity "http://identifiers.org/chebi/CHEBI:17234"', 'i122', 'identity',
-        '"http://identifiers.org/chebi/CHEBI:17234"'),
-    ('aga hasPart ""', 'aga', 'hasPart', '""'),  # empty uri
-    ('aga hasPart "\\n"', 'aga', 'hasPart', '"\\n"'),  # escaped character
-    ('aga hasPart ";"', 'aga', 'hasPart', '";"'),  # semicolon
-    ('aga hasPart "const"', 'aga', 'hasPart', '"const"'),  # keyword
+        'http://identifiers.org/chebi/CHEBI:17234'),
+    ('aga hasPart ""', 'aga', 'hasPart', ''),  # empty uri
+    ('aga hasPart "\\n"', 'aga', 'hasPart', '\\n'),  # escaped character
+    ('aga hasPart ";"', 'aga', 'hasPart', ';'),  # semicolon
+    ('aga hasPart "const"', 'aga', 'hasPart', 'const'),  # keyword
 ])
 def test_annotation(code: str, name: str, keyword: str, uri: str):
     # TODO

@@ -1,4 +1,6 @@
 '''Classes for working with and storing symbols.
+
+Author: Gary Geng
 '''
 from stibium.ant_types import Annotation, Name, TreeNode
 from .types import ObscuredDeclaration, ObscuredValue, SrcRange, SymbolType, IncompatibleType
@@ -11,7 +13,8 @@ from lark.lexer import Token
 
 from lark.tree import Tree
 
-'''Classes that represent scopes. TODO rename all these to Scope, b/c Scope is not the same thing as scope'''
+'''Classes that represent scopes.'''
+
 class AbstractScope(abc.ABC):
     '''Should never be instantiated.'''
     pass
@@ -106,6 +109,7 @@ class Symbol:
         return self.decl_name or self.value_node or self.type_name
 
     def help_str(self):
+        '''Generate a markdown help string for this symbol.'''
         # TODO this is very basic right now. Need to create new Symbol classes for specific types
         # and get better data displayed here.
         ret = '```\n({}) {}\n```'.format(self.type, self.name)
@@ -185,7 +189,19 @@ class SymbolTable:
 
     def insert(self, qname: QName, typ: SymbolType, decl_node: TreeNode = None,
                value_node: TreeNode = None):
-        '''Insert a variable symbol into the symbol table.'''
+        '''Insert a variable symbol into the symbol table.
+
+        This should be called repeatedly in the order that the symbols were defined. Additional
+        information including whether the symbol was part of a declaration statement may be provided
+        for semantic analysis.
+        
+        Args:
+            qname: The qualified name of the symbol.
+            typ: The type of the symbol.
+            decl_node: If this symbol is part of a declaration, the Declaration node. Otherwise
+                       None.
+            value_node: If this symbol has an assigned value, the value node. Otherwise None.
+        '''
         # TODO create more functions like insert_var(), insert_reaction(), insert_model() and
         # create more specific symbols. Need to store things like value for types like var.
         # Have an inner method that returns (added, [errors]). Update the value, etc. only if
@@ -244,6 +260,7 @@ class SymbolTable:
             sym.value_node = value_node
 
     def insert_annotation(self, qname: QName, node: Annotation):
+        '''Insert an Annotation for a symbol.'''
         leaf_table = self._leaf_table(qname.scope)
         name = qname.name.text
         if name not in leaf_table:

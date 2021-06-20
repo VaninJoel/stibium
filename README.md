@@ -4,7 +4,7 @@ that supports parsing, static analysis, completion, and more.
 Stibium provides an simple Python API for performing the above tasks and handling the parse tree.
 [Lark](https://github.com/lark-parser/lark) is used as the parser backend.
 
-Stibium requires Python 3.6+.
+Stibium requires Python 3.7+.
 
 ## Features
 * Parse Antimony source files and generate a navigable tree.

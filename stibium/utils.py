@@ -1,3 +1,7 @@
+'''Utility functions.
+
+Author: Gary Geng
+'''
 
 import os
 from typing import Optional
@@ -12,19 +16,23 @@ import pathlib
 
 
 def get_abs_path(filename: str):
+    '''Get the absolute path for a file within the package.'''
     return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), filename)
 
 
 def get_token_range(token: Token):
+    '''Get the range of a Lark Token as SrcRange.'''
     return SrcRange(SrcPosition(token.line, token.column),
                     SrcPosition(token.end_line, token.end_column))
 
 def get_tree_range(tree: Tree):
+    '''Get the range of a Lark Tree as SrcRange.'''
     return SrcRange(SrcPosition(tree.meta.line, tree.meta.column),
                     SrcPosition(tree.meta.end_line, tree.meta.end_column))
 
 
 def formatted_code(node: Optional[TreeNode]):
+    '''Return a formatted code string for the given TreeNode.'''
     if node is None:
         return ''
 
@@ -61,4 +69,5 @@ def formatted_code(node: Optional[TreeNode]):
 
 
 def to_uri(path: str) -> str:
+    '''Conver the given path to a URI, for use by pygls.'''
     return pathlib.Path(path).as_uri()

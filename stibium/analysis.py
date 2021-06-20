@@ -1,13 +1,15 @@
+'''Functions for doing static analysis and diagnostics.
 
-from stibium.ant_types import Annotation, ArithmeticExpr, Assignment, Declaration, ErrorNode, ErrorToken, FileNode, Function, InComp, LeafNode, Model, Name, Reaction, SimpleStmt, TreeNode, TrunkNode
-from .types import ASTNode, Issue, SymbolType, SyntaxErrorIssue, UnexpectedEOFIssue, UnexpectedNewlineIssue, UnexpectedTokenIssue, Variability, SrcPosition
-from .symbols import AbstractScope, BaseScope, FunctionScope, ModelScope, QName, SymbolTable
+Author: Gary Geng
+'''
+
+from stibium.ant_types import Annotation, Assignment, Declaration, ErrorNode, ErrorToken, FileNode, Function, InComp, LeafNode, Model, Name, Reaction, SimpleStmt, TreeNode, TrunkNode
+from .types import ASTNode, Issue, SymbolType, UnexpectedEOFIssue, UnexpectedNewlineIssue, UnexpectedTokenIssue, Variability, SrcPosition
+from .symbols import AbstractScope, BaseScope, FunctionScope, ModelScope, QName, Symbol, SymbolTable
 
 from dataclasses import dataclass
 from typing import Any, List, Optional, Set, cast
 from itertools import chain
-from lark.lexer import Token
-from lark.tree import Tree
 
 
 def get_qname_at_position(root: FileNode, pos: SrcPosition) -> Optional[QName]:
@@ -51,18 +53,26 @@ def get_qname_at_position(root: FileNode, pos: SrcPosition) -> Optional[QName]:
 
 
 class AntTreeAnalyzer:
+    '''A class for doing the analysis.
+
+    Given a syntax tree at the root (FileNode), the Analyzer traverses it, populates a symbol table, 
+    and generates semantic and syntax issues.
+    
+    TODO: there is really no reason for this to be a class, as the internal state is reused
+    elsewhere. In the future, possibly refactor this to functions.
+    '''
     def __init__(self, root: FileNode):
         self.table = SymbolTable()
         self.root = root
         base_scope = BaseScope()
         for child in root.children:
-            if isinstance(child, ErrorToken):
+            if isinstance(child, (ErrorToken, ErrorNode)):
                 continue
-            if isinstance(child, ErrorNode):
-                continue
+
             if isinstance(child, SimpleStmt):
                 stmt = child.get_stmt()
                 if stmt is None:
+                    # empty statement
                     continue
 
                 {
@@ -71,6 +81,8 @@ class AntTreeAnalyzer:
                     'Declaration': self.handle_declaration,
                     'Annotation': self.handle_annotation,
                 }[stmt.__class__.__name__](base_scope, stmt)
+
+                # record all the "in <compartment>" subtrees of tree
                 self.handle_child_incomp(base_scope, stmt)
         
         self.semantic_issues = self.table.issues
@@ -78,6 +90,11 @@ class AntTreeAnalyzer:
         self._record_syntax_issues()
 
     def _record_syntax_issues(self):
+        '''Record the syntax issues in this tree to self.syntax_issues.
+
+        This works by adding one issue for each ErrorToken that is the first ErrorToken on its
+        line.
+        '''
         lines = set()
         for node in self.root.children:
             if node is None:
@@ -92,6 +109,9 @@ class AntTreeAnalyzer:
                 else:
                     issue = UnexpectedTokenIssue(node.range, node.text)
             elif type(node) == ErrorNode:
+                # This one is special since an unexpected EOF does not generate an UnexpectedToken
+                # issue. Instead, we need to check if there is an ErrorNode followed by nothing,
+                # in which case, there is definitely an unexpected EOF
                 node = cast(ErrorNode, node)
                 last_leaf = node.last_leaf()
                 if last_leaf and last_leaf.next is None:
@@ -102,7 +122,8 @@ class AntTreeAnalyzer:
                 self.syntax_issues.append(issue)
                 lines.add(issue.range.start.line)
 
-    def resolve_qname(self, qname: QName):
+    def resolve_qname(self, qname: QName) -> List[Symbol]:
+        '''Return a list of symbols associated with the given QName (qualified name).'''
         return self.table.get(qname)
 
     def get_all_names(self) -> Set[str]:
@@ -114,6 +135,10 @@ class AntTreeAnalyzer:
         return (self.semantic_issues + self.syntax_issues).copy()
 
     def get_unique_name(self, prefix: str):
+        '''Get a globally unique name (not accounting for scopes) with the given prefix.
+        
+        The resulting name is guaranteed to be either `prefix` or `prefix_#`.
+        '''
         return self.table.get_unique_name(prefix)
 
     def handle_child_incomp(self, scope: AbstractScope, node: TrunkNode):
@@ -126,6 +151,7 @@ class AntTreeAnalyzer:
 
     def handle_arith_expr(self, scope: AbstractScope, expr: TreeNode):
         # TODO handle dummy tokens
+        # hasattr() is used rather than isinstance() since the latter is much slower
         if not hasattr(expr, 'children'):
             if type(expr) == Name:
                 leaf = cast(Name, expr)
@@ -141,10 +167,6 @@ class AntTreeAnalyzer:
         name = reaction.get_name()
         if name is not None:
             self.table.insert(QName(scope, name), SymbolType.Reaction, reaction)
-        # else:
-        #     reaction_name = self.table.get_unique_name('_J', scope)
-        #     reaction_range = get_tree_range(tree)
-        #     reaction_token = tree.children[3]
 
         for species in chain(reaction.get_reactants(), reaction.get_products()):
             self.table.insert(QName(scope, species.get_name()), SymbolType.Species)
@@ -197,22 +219,3 @@ class AntTreeAnalyzer:
         qname = QName(scope, name)
         self.table.insert(qname, SymbolType.Parameter)
         self.table.insert_annotation(qname, annotation)
-
-
-# def get_ancestors(node: ASTNode):
-#     ancestors = list()
-#     while True:
-#         parent = getattr(node, 'parent')
-#         if parent is None:
-#             break
-#         ancestors.append(parent)
-#         node = parent
-
-#     return ancestors
-
-
-# def find_node(nodes: List[Tree], data: str):
-#     for node in nodes:
-#         if node.data == data:
-#             return node
-#     return None

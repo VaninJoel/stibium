@@ -1,5 +1,10 @@
 '''
-Hacks made on lark, required until lark makes a new release.
+Monkey-patches made on lark, required until lark makes a new release.
+
+As of 06/20/2021, Lark's master branch on Github has already implemented the functionality for
+get_puppet(). So as soon as another release is made by Lark, this file may be deleted.
+
+Author: Gary Geng
 '''
 
 from lark.lark import Lark

@@ -1,10 +1,14 @@
+'''Some API for use by the client (e.g. a languaage server) for common user-facing operations.
+
+Author: Gary Geng
+'''
 
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List, Optional, cast
 from lark.lexer import Token
 from lark.tree import Tree
-from stibium.ant_types import NameMaybeIn, Number, Reaction, ReactionName, SpeciesList
+from stibium.ant_types import Annotation, NameMaybeIn, Number, Reaction, ReactionName, SpeciesList
 from stibium.analysis import AntTreeAnalyzer, get_qname_at_position
 from stibium.parse import AntimonyParser
 from stibium.symbols import QName
@@ -15,7 +19,7 @@ from stibium.utils import to_uri
 
 class AntCompletionKind(Enum):
     TEXT = auto()
-    RATE_LAW = auto()
+    RATE_LAW = auto()  # Special snippet-based completion for reaciton rate laws
 
 
 @dataclass(frozen=True)
@@ -25,6 +29,7 @@ class AntCompletion:
 
 
 class Completer:
+    '''API class for auto-completion.'''
     def __init__(self, analyzer: AntTreeAnalyzer, parser: AntimonyParser, text: str,
                  position: SrcPosition):
         # TODO refactor: instead of passing analyzer and text as separate values, create a class
@@ -52,12 +57,13 @@ class Completer:
         puppet = parser.get_puppet_at_position(text, position)
         basics = [AntCompletion(name, AntCompletionKind.TEXT) for name in analyzer.get_all_names()]
 
-        # special rate law completions
+        '''Do special rate law completions'''
         rate_laws = list()
 
         choices = puppet.choices()
         reaction: Optional[Reaction] = None
-        # try to construct a reaction
+        # try to construct a reaction by filling out the rate law.
+        # If this step succeeds, we are at the beginning of the rate law portion of the reaction.
         if 'NUMBER' in choices:
             rxn_puppet = puppet.copy()
             rxn_puppet.feed_token(Token('NUMBER', 0))  # type: ignore
@@ -89,6 +95,7 @@ class Completer:
 
     def _mass_action_ratelaw(self, name: str, reactants: List[Species], products: List[Species],
                              reversible: bool):
+        '''Generate a mass-action rate law string from a reaction.'''
 
         def species_list_str(species_list: List[Species]):
             if not species_list:
@@ -160,23 +167,11 @@ class AntFile:
     def get_issues(self) -> List[Issue]:
         return self.analyzer.get_issues()
 
-    def save_checkpoint(self, tree) -> bool:
-        '''Returns whether we should save the state of the parser (i.e. in a ParserPuppet).
-
-        Basically returns whether the rule that was just parsed is a complete rule, i.e. a statement
-        or a model-end. This way, if we encounter an error later, we can restore the puppet to
-        this complete state, find the next newline or semicolon, and continue parsing (having
-        skipped the errored part).
-        '''
-        if tree.data in ('reaction', 'assignment', 'declaration', 'annotation', 'model'):
-            return True
-
-        return False
-
     def completions(self, position: SrcPosition):
         completer = Completer(self.analyzer, self.parser, self.text, position)
         return completer.completions()
 
-    def get_annotations(self, qname: QName):
+    def get_annotations(self, qname: QName) -> List[Annotation]:
+        '''Return all Annotation statements associated with the given qname.'''
         # TODO HACK this isn't very elegant -- no encapsulation
         return self.analyzer.table.get(qname)[0].annotations

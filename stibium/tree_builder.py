@@ -1,3 +1,8 @@
+'''Functions that convert a Lark tree to an Antimony tree with the correct types, as seen in
+stibium.ant_types.
+
+Author: Gary Geng
+'''
 
 
 # Helper classes to hold name structures
@@ -68,6 +73,7 @@ for name in KEYWORDS:
 
 
 def transform_tree(tree: Optional[Union[Tree, str]]):
+    '''Transform the entirely of a Lark tree to our Antimony tree and return it.'''
     if tree is None:
         return None
 

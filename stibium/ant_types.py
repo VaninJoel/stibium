@@ -1,3 +1,7 @@
+'''Types in the Antimony abstract syntax tree.
+
+Author: Gary Geng
+'''
 import abc
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union, cast
@@ -37,6 +41,7 @@ class TreeNode(abc.ABC):
 
 @dataclass
 class TrunkNode(TreeNode):
+    '''A node with children.'''
     range: SrcRange
     children: Tuple[Optional['TreeNode'], ...] = field(repr=False)
     parent: Optional['TrunkNode'] = field(default=None, compare=False, repr=False)
@@ -71,14 +76,16 @@ class TrunkNode(TreeNode):
 
 @dataclass
 class LeafNode(TreeNode):
+    '''A node without children, corresponding to a token from the lexer.'''
     range: SrcRange
-    text: str
+    text: str  # text of the token
     parent: Optional['TrunkNode'] = field(default=None, compare=False, repr=False)
-    prev: Optional['LeafNode'] = field(default=None, compare=False, repr=False)
-    next: Optional['LeafNode'] = field(default=None, compare=False, repr=False)
+    prev: Optional['LeafNode'] = field(default=None, compare=False, repr=False)  # previous token
+    next: Optional['LeafNode'] = field(default=None, compare=False, repr=False)  # next token
 
 
 def _scan_leaves(node: TreeNode):
+    # Generator for all the leaves of the tree defined by node.
     # using this instead of isinstance() for performance
     if hasattr(node, 'children'):
         node = cast(TrunkNode, node)
@@ -113,6 +120,7 @@ class ErrorNode(TrunkNode):
 # performance reasons
 @dataclass
 class ErrorToken(LeafNode):
+    '''A token that was not expected while parsing. See `ErrorNode`.'''
     pass
 
 
@@ -147,7 +155,10 @@ class Power(ArithmeticExpr, TrunkNode):
 
 @dataclass
 class Atom(TrunkNode, ArithmeticExpr):
-    '''Atomic arithmetic expression.'''
+    '''Atomic arithmetic expression.
+    
+    The type here is not fully correct since `atom` is defined more broadly in the Antimony
+    grammar file.'''
     children: Tuple['Operator', Union[ArithmeticExpr, 'Number', 'VarName'], 'Operator'] = field(repr=False)
     # TODO also possible that children be '-' 'number' or '+' 'name', etc. Possibly create a new
     # rule called Factor that handles that?
@@ -194,6 +205,7 @@ class Newline(LeafNode):
 
 @dataclass
 class VarName(TrunkNode):
+    '''Represents '$a' or 'a'. See antimony.lark for more info.'''
     children: Tuple[Optional[Operator], Name] = field(repr=False)
 
     def is_const(self):
@@ -210,6 +222,7 @@ class VarName(TrunkNode):
 # performance reasons
 @dataclass
 class InComp(TrunkNode):
+    '''Represents 'in c'. See antimony.lark for more info.'''
     children: Tuple[Keyword, VarName] = field(repr=False)
 
     def get_comp(self) -> VarName:
@@ -218,6 +231,7 @@ class InComp(TrunkNode):
 
 @dataclass
 class NameMaybeIn(TrunkNode):
+    '''Represents 'a [in c]'. See antimony.lark for more info.'''
     children: Tuple[VarName, Optional[InComp]] = field(repr=False)
 
     def get_var_name(self):
@@ -230,16 +244,13 @@ class NameMaybeIn(TrunkNode):
         return self.children[1].get_comp()
 
 
-# # TODO move this to another class, e.g. logical/model types
-# # TODO create new classes Name and Node to replace Token and Tree
-# @dataclass
-# class Species:
-#     stoich: float
-#     name: Token
-
-
 @dataclass
 class Species(TrunkNode):
+    '''A species in a reaction, e.g. [stoich] [$] name.
+    
+    The '$' is hardcoded here rather than having '[stoich] var_name', because Lark has some issue
+    handling the ambiguity here.
+    '''
     children: Tuple[Optional[Number], Optional[Operator], Name] = field(repr=False)
     
     def get_stoich(self):
@@ -275,6 +286,7 @@ class ReactionName(TrunkNode):
 
 @dataclass
 class SpeciesList(TrunkNode):
+    '''Represents the list of reactants or the list of products in a reaction.'''
     def get_all_species(self) -> List[Species]:
         return cast(List[Species], self.children[::2])
 
@@ -302,9 +314,15 @@ class Reaction(TrunkNode):
         return self.children[0].get_name_text()
 
     def get_reactant_list(self) -> Optional[SpeciesList]:
+        '''Get the SpeciesList object associated with the reactants.
+        
+        For a list of Species objects, see get_reactants().'''
         return self.children[1]
 
     def get_product_list(self) -> Optional[SpeciesList]:
+        '''Get the SpeciesList object associated with the products.
+        
+        For a list of Species objects, see get_reactants().'''
         return self.children[3]
 
     def get_reactants(self) -> List[Species]:
@@ -324,7 +342,7 @@ class Reaction(TrunkNode):
 
     def is_reversible(self):
         assert self.children[2].text in ('->', '=>')
-        return self.children[2].text == '=>'
+        return self.children[2].text == '->'
 
 
 @dataclass
@@ -346,12 +364,14 @@ class Assignment(TrunkNode):
 
 @dataclass
 class VarModifier(Keyword):
+    '''Represents var or const in a declaration.'''
     # text: Union[Literal['const'], Literal['var']]
     pass
 
 
 @dataclass
 class TypeModifier(Keyword):
+    '''Represents a type name in a declaration.'''
     # text: Union[Literal['species'], Literal['compartment'], Literal['formula']]
     pass
 
@@ -395,6 +415,7 @@ class DeclModifiers(TrunkNode):
 
 @dataclass
 class DeclAssignment(TrunkNode):
+    '''Represents an assignment item in a declaration statement. See antimony.lark for more info.'''
     children: Tuple[Operator, ArithmeticExpr] = field(repr=False)
 
     def get_value(self):
@@ -403,6 +424,7 @@ class DeclAssignment(TrunkNode):
 
 @dataclass
 class DeclItem(TrunkNode):
+    '''Represents a declaration item in a declaration statement. See antimony.lark for more info.'''
     children: Tuple[NameMaybeIn, DeclAssignment] = field(repr=False)
 
     def get_maybein(self):
@@ -466,7 +488,7 @@ class SimpleStmt(TrunkNode):
         return self.children[0]
 
 
-# TODO
+# TODO BEGIN not implemented
 @dataclass
 class Model(TrunkNode):
     def get_name(self):
@@ -477,8 +499,10 @@ class Model(TrunkNode):
 class Function(TrunkNode):
     def get_name(self):
         assert False, 'Not implemented'
+# END not implemented
 
 
+# The root node (of an Antimony source file)
 @dataclass
 class FileNode(TrunkNode):
     children: Tuple[SimpleStmt, ...] = field(repr=False)
