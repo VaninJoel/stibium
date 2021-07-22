@@ -1,0 +1,371 @@
+// code by Ciaran Welsh source (https://github.com/CiaranWelsh/antimony-pyparser/blob/master/antimony_pyparser/antimony_grammar.lark)
+
+start           :  input
+
+// (<group>)* = 0 or more
+?input          :  (input import)*             -> import_input
+                |  (input module)*             -> module_input
+                |  (input modulepart)*         -> modulepart_input
+                |  (input function)*           -> function_input
+                |  (input modulename)*         -> modulename_input
+                |  (input functionname)*       -> functionname_input
+                |  (input modulecvterm)*       -> modulecvterm_input
+                |  (input functioncvterm)*     -> functioncvterm_input
+                |  input toplevel_sbo          -> toplevel_sbo_input
+
+
+?import         : IMPORT QUOTED_TEXTSTRING
+
+?module         :  MODULE maybemain ANTWORD  "(" (variableexportlist)* ")" modulebody END
+                |  MODULE maybemain ANTWORD modulebody END
+                |  MODULE MODNAME
+                |  MODULE FUNCTION
+                //|  MODULE "*" ANTWORD  "(" (variableexportlist)* ")" modulebody END
+
+maybemain       : /\*/?         // 0 or 1 literal '*' char's
+?function       :  FUNCTIONWORD ANTWORD "(" variableexportlist ")" spacedformula END
+                |  FUNCTIONWORD MODNAME        // {g_registry.SetError("Cannot use '" + *($2) +"' as a function name because it is already the name of a module."); YYABORT;}
+                |  FUNCTIONWORD FUNCTION       // {g_registry.SetError("Cannot define '" + *($2) + "' as a new function because it is already a defined function."); YYABORT;}
+
+
+?spacedformula              :  formula
+                            |  lineend spacedformula
+                            |  spacedformula lineend
+
+
+?variableexportlist         :  (variable)*
+                            |  (variableexportlist "," variable)*
+
+
+?variable                   :  ANTWORD
+                            |  variable "." ANTWORD
+                            |  "$" variable
+
+
+?variablein                 :  variable INWORD variable
+
+
+?varmaybein                 :  variable
+                            |  variablein
+
+
+?varmaybeis                 :  varmaybein
+                            |  varmaybein "=" formula
+                            |  varmaybein ":" "=" formula
+                            |  varmaybein "'" "=" formula
+                            |  varmaybein HASWORD unitdef
+
+
+?maybein                    :  // /* empty */
+                            |  (INWORD variable)*
+
+
+?modulebody         :  modulepart
+                    |  modulebody modulepart
+
+
+?modulepart     :   reaction lineend
+                |   assignment lineend
+                |   submodule lineend
+                |   varinitialize lineend
+                |   dnadef lineend
+                |   event lineend
+                |   unitinit lineend
+                |   deletion lineend
+                |   cvterm lineend
+                |   variablein
+                |   constraint lineend
+                |   objective lineend
+                |   lineend
+
+
+?reaction:       varmaybein ":" reactantlist reactiondivider reactantlist ";" formula maybein
+        |       reactantlist reactiondivider reactantlist ";" formula maybein
+        |       reactantlist reactiondivider ";" formula maybein
+        |       varmaybein ":" reactantlist reactiondivider ";" formula maybein
+        |       reactiondivider reactantlist ";" formula maybein
+        |       varmaybein ":" reactiondivider reactantlist ";" formula maybein
+
+
+
+?reactantlist:   variable
+        |       NUM variable 
+        |       reactantlist "+" variable 
+        |       reactantlist "+" NUM variable 
+
+
+?reactiondivider:    BECOMESREV
+        |       BECOMESINH 
+        |       "-" "(" 
+        |       BECOMESMOD2 
+        |       BECOMESIRREV 
+
+
+?formula:        // /* empty */
+        |       (formula ELLIPSES )*
+        |       (formula variable )*
+        |       (formula NUM  )*
+        |       (formula CONSTANT  )*
+        |       (formula FUNCTION )*
+        |       (formula "(" commaformula ")" )*
+        |       (formula "{" commaformula "}")*
+        |       (formula maththing )*
+        |       (formula inequality )*
+        |       (formula "=" "=" )*
+        |       (formula "&" "&" )*
+        |       (formula "|" "|")*
+
+?commaformula:   formula
+        |       commaformula "," formula 
+
+
+?maththing:      "+"
+        |       "-" 
+        |       "*" 
+        |       "/" 
+        |       "^" 
+        |       "!" 
+        |       "%" 
+
+
+?inequality:     "<"
+        |       LEQ 
+        |       ">" 
+        |       GEQ 
+        |       NEQ 
+
+
+?lineend:        ";"
+        |       "\n" 
+        |       "EOL"
+
+
+?assignment  :  varmaybein ":" maxormin formula
+             |  varmaybein "=" formula
+             |  varmaybein IS variable
+             |  varmaybein IS variable "/" variable
+             |  varmaybein "*" variable IS variable
+             |  varmaybein IS TEXTSTRING
+             |  varmaybein IS /"/ TEXTSTRING /"/
+             |  varmaybein ":" "=" formula
+             |  varmaybein "'" "=" formula
+             |  varmaybein HASWORD unitdef
+             |  "x=4"
+
+
+
+?submodule:      varmaybein ":" MODNAME "("
+        |       MODNAME "(" 
+
+
+?variableimportlist:
+        |       (variable)*
+        |       (variableimportlist "," variable )*
+        |       (NUM )*
+        |       (variableimportlist "," NUM )*
+
+
+?submodifications:
+        |       (submodifications "," ANTWORD "=" variable)*
+        |       (submodifications "," ANTWORD "=" NUM)*
+
+?varinitialize:  specinit
+        |       formulainit 
+        |       reactioninit 
+        |       dnainit 
+        |       geneinit 
+        |       operatorinit 
+        |       compartmentinit
+        |       varconstinit 
+
+
+?specinit:       SPECIES varmaybeis
+        |       VARWORD SPECIES varmaybeis 
+        |       CONSTWORD SPECIES varmaybeis 
+        |       SUBSTONLY SPECIES varmaybeis 
+        |       SUBSTONLY varmaybeis 
+        |       VARWORD SUBSTONLY SPECIES varmaybeis 
+        |       CONSTWORD SUBSTONLY SPECIES varmaybeis 
+        |       specinit "," varmaybeis 
+
+
+?formulainit:    FORMULA varmaybeis
+        |       VARWORD FORMULA varmaybeis 
+        |       CONSTWORD FORMULA varmaybeis 
+        |       formulainit "," varmaybeis 
+
+
+?reactioninit:   REACTION varmaybeis
+        |       VARWORD REACTION varmaybeis 
+        |       CONSTWORD REACTION 
+        |       reactioninit "," varmaybeis 
+
+
+?dnainit:        DNA varmaybeis
+        |       VARWORD DNA varmaybeis 
+        |       CONSTWORD DNA varmaybeis 
+        |       dnainit "," varmaybeis 
+
+
+?geneinit:       GENE varmaybeis
+        |       VARWORD GENE varmaybeis 
+        |       CONSTWORD GENE varmaybeis 
+        |       geneinit "," varmaybeis 
+
+
+?operatorinit:   OPERATOR varmaybeis
+        |       VARWORD OPERATOR varmaybeis 
+        |       CONSTWORD OPERATOR varmaybeis 
+        |       operatorinit "," varmaybeis 
+
+
+?compartmentinit: COMPARTMENT varmaybeis
+        |       VARWORD COMPARTMENT varmaybeis 
+        |       CONSTWORD COMPARTMENT varmaybeis 
+        |       compartmentinit "," varmaybeis 
+
+
+?varconstinit:   VARWORD varmaybeis
+        |       CONSTWORD varmaybeis 
+        |       varconstinit "," varmaybeis 
+
+
+?unitinit:       UNITWORD variable "=" formula
+        |       UNITWORD variable 
+
+
+?dnadef:         dnastrand
+        |       varmaybein ":" dnastrand 
+
+
+?dnastrand:      DASHES variable
+        |       DASHES dnamiddle 
+        |       dnamiddle variable 
+        |       DASHES dnamiddle variable 
+        |       dnamiddle 
+
+
+dnamiddle:      variable DASHES 
+        |       dnamiddle variable DASHES 
+
+
+?event:          AT formula  eventmodifications colonret assignmentlist
+        |       AT formula AFTER formula  eventmodifications colonret assignmentlist 
+        |       varmaybein ":" AT formula   eventmodifications colonret assignmentlist 
+        |       varmaybein ":" AT formula AFTER formula  eventmodifications colonret assignmentlist 
+
+
+?colonret:       ":"
+        |       colonret "\n" 
+
+
+?eventmodifications:  (eventmodifications "," ANTWORD "=" formula)*
+
+
+
+?assignmentlist: variable "=" formula
+        |       variable "=" formula ":" assignmentlist 
+        |       variable "=" formula ":" "\n" assignmentlist 
+        |       variable "=" formula "," assignmentlist 
+        |       variable "=" formula "," "\n" assignmentlist 
+
+
+deletion:       DELETEWORD variable 
+        |       deletion "," variable 
+
+
+?unitdef:        formula
+
+
+?constraint:     NUM inequality formula
+        |       "-" NUM inequality formula 
+        |       CONSTANT inequality formula 
+        |       ANTWORD inequality formula 
+        |       CONSTRAINTWORD ":" formula 
+        |       CONSTRAINTWORD variable ":" formula 
+
+
+?objective:      maxormin formula
+
+
+?maxormin:       MAXIMIZEWORD
+        |       MINIMIZEWORD 
+
+
+?stringlist:     TEXTSTRING  // need to free $1?
+        |       stringlist "," TEXTSTRING  // need to free $3?
+        |       stringlist "," "\n" TEXTSTRING  // eat newlines
+
+// JKM cvterm accepts multiple URIs in the stringlist
+?cvterm:         variable ANTWORD stringlist
+
+// JKM setting an SBO term for a module (outside the body of the module)
+?toplevel_sbo       :  MODNAME "." "sboTerm" "=" NUM
+                    |  FUNCTION "." "sboTerm" "=" NUM  // JKM setting an SBO term for a function (outside the body of the function)
+
+
+// JKM for naming modules and functions (display names)
+?modulename:     MODNAME IS TEXTSTRING lineend
+                
+?functionname:   FUNCTION IS TEXTSTRING lineend
+                
+
+// JKM for parsing cv terms for modules and functions
+?modulecvterm:   MODNAME ANTWORD stringlist lineend
+?functioncvterm: FUNCTION ANTWORD stringlist lineend
+
+
+AFTER               : "after"
+AT                  : "@"|"at"
+BECOMESREV          : "->"
+BECOMESINH          : "-|"
+BECOMESMOD2         : "-o"
+BECOMESIRREV        : "=>"
+COMPARTMENT         : "compartment"
+CONSTANT            : ANTWORD//"name of a pre-defined constant" Use lark.Transform
+CONSTRAINTWORD      : "constraint"
+CONSTWORD           : "const"
+DASHES              : "--"
+DELETEWORD          : "delete"
+DNA                 : "DNA"
+ELLIPSES            : "..."
+END                 : "end"
+ERROR               : ANTWORD// "an error"
+EVENT               : "event"
+FORMULA             : "formula"
+FUNCTION            : ANTWORD//"name of an existing function"
+FUNCTIONWORD        : "function"
+GENE                : "gene"
+GEQ                 : ">="
+NEQ                 : "!="
+HASWORD             : "has"
+IMPORT              : "import"
+INWORD              : "in"
+IS                  : "is"
+LEQ                 : "<="
+MAXIMIZEWORD        : "maximize"
+MINIMIZEWORD        : "minimize"
+MODNAME             : ANTWORD //"name of an existing module"
+MODULE              : "model" | "module"
+OPERATOR            : "operator"
+REACTION            : "reaction"
+SPECIES             : "species"
+SUBSTONLY           : "substanceOnly"
+QUOTED_TEXTSTRING   : /"/ TEXTSTRING /"/
+TEXTSTRING          : /[ -~]+/      // all ascii char from space to tilde
+UNITWORD            : "unit"
+VARWORD             : "var"
+NUM                 : NUMBER
+ANTWORD             : WORD
+WORD                : /[A-Za-z0-9_\u0080-\uFFFF]+/  // \u0080-\uFFFF matches non-ascii
+// WORD                : /[A-Za-z0-9_]+/  // \u0080-\uFFFF matches non-ascii
+
+%import common.DIGIT
+%import common.NUMBER
+%import common.FLOAT
+%import common.LETTER
+%import common.NEWLINE
+%import common.WS
+%import common.CPP_COMMENT
+%ignore WS
+%ignore CPP_COMMENT
