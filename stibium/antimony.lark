@@ -13,6 +13,7 @@ ARROW : "->"
     | "=>"
 
 assignment : namemaybein "=" sum
+event : "at"
 
 annotation : var_name ANNOT_KEYWORD ESCAPED_STRING
 ANNOT_KEYWORD: "identity" | "hasPart"
